@@ -1,100 +1,326 @@
-import activitiesData from "@/services/mockData/activities.json";
-
-let activities = [...activitiesData];
-
-const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+import { getApperClient } from "@/services/apperClient";
+import { toast } from "react-toastify";
 
 const activityTypes = ["Call", "Email", "Meeting", "Task", "Note"];
 
 export const activitiesService = {
   async getAll() {
-    await delay(300);
-    return [...activities];
+    try {
+      const apperClient = getApperClient();
+      const response = await apperClient.fetchRecords('activity_c', {
+        fields: [
+          {"field": {"Name": "Name"}},
+          {"field": {"Name": "type_c"}},
+          {"field": {"Name": "subject_c"}},
+          {"field": {"Name": "description_c"}},
+          {"field": {"Name": "dueDate_c"}},
+          {"field": {"Name": "completed_c"}},
+          {"field": {"Name": "createdAt_c"}},
+          {"field": {"name": "contactId_c"}, "referenceField": {"field": {"Name": "Name"}}},
+          {"field": {"name": "dealId_c"}, "referenceField": {"field": {"Name": "Name"}}}
+        ]
+      });
+
+      if (!response.success) {
+        console.error(response.message);
+        toast.error(response.message);
+        return [];
+      }
+
+      return response.data || [];
+    } catch (error) {
+      console.error("Error fetching activities:", error?.message || error);
+      toast.error("Failed to load activities");
+      return [];
+    }
   },
 
   async getById(id) {
-    await delay(200);
-    const activity = activities.find(a => a.Id === parseInt(id));
-    if (!activity) {
-      throw new Error("Activity not found");
+    try {
+      const apperClient = getApperClient();
+      const response = await apperClient.getRecordById('activity_c', parseInt(id), {
+        fields: [
+          {"field": {"Name": "Name"}},
+          {"field": {"Name": "type_c"}},
+          {"field": {"Name": "subject_c"}},
+          {"field": {"Name": "description_c"}},
+          {"field": {"Name": "dueDate_c"}},
+          {"field": {"Name": "completed_c"}},
+          {"field": {"Name": "createdAt_c"}},
+          {"field": {"name": "contactId_c"}, "referenceField": {"field": {"Name": "Name"}}},
+          {"field": {"name": "dealId_c"}, "referenceField": {"field": {"Name": "Name"}}}
+        ]
+      });
+
+      if (!response.success) {
+        console.error(response.message);
+        toast.error(response.message);
+        throw new Error("Activity not found");
+      }
+
+      return response.data;
+    } catch (error) {
+      console.error(`Error fetching activity ${id}:`, error?.message || error);
+      throw error;
     }
-    return { ...activity };
   },
 
   async create(activityData) {
-    await delay(400);
-    const newActivity = {
-      ...activityData,
-      Id: Math.max(...activities.map(a => a.Id), 0) + 1,
-      completed: activityData.completed || false,
-      createdAt: new Date().toISOString()
-    };
-    activities.push(newActivity);
-    return { ...newActivity };
+    try {
+      const apperClient = getApperClient();
+      const payload = {
+        type_c: activityData.type_c,
+        subject_c: activityData.subject_c,
+        description_c: activityData.description_c,
+        dueDate_c: activityData.dueDate_c,
+        completed_c: activityData.completed_c || false,
+        createdAt_c: new Date().toISOString()
+      };
+
+      if (activityData.contactId_c) {
+        payload.contactId_c = parseInt(activityData.contactId_c);
+      }
+
+      if (activityData.dealId_c) {
+        payload.dealId_c = parseInt(activityData.dealId_c);
+      }
+
+      const response = await apperClient.createRecord('activity_c', {
+        records: [payload]
+      });
+
+      if (!response.success) {
+        console.error(response.message);
+        toast.error(response.message);
+        throw new Error("Failed to create activity");
+      }
+
+      if (response.results) {
+        const failed = response.results.filter(r => !r.success);
+        if (failed.length > 0) {
+          console.error(`Failed to create activity: ${JSON.stringify(failed)}`);
+          failed.forEach(record => {
+            if (record.message) toast.error(record.message);
+          });
+          throw new Error("Failed to create activity");
+        }
+        return response.results[0].data;
+      }
+
+      return response.data;
+    } catch (error) {
+      console.error("Error creating activity:", error?.message || error);
+      throw error;
+    }
   },
 
   async update(id, activityData) {
-    await delay(350);
-    const index = activities.findIndex(a => a.Id === parseInt(id));
-    if (index === -1) {
-      throw new Error("Activity not found");
+    try {
+      const apperClient = getApperClient();
+      const payload = {
+        Id: parseInt(id),
+        type_c: activityData.type_c,
+        subject_c: activityData.subject_c,
+        description_c: activityData.description_c,
+        dueDate_c: activityData.dueDate_c,
+        completed_c: activityData.completed_c
+      };
+
+      if (activityData.contactId_c) {
+        payload.contactId_c = parseInt(activityData.contactId_c);
+      }
+
+      if (activityData.dealId_c) {
+        payload.dealId_c = parseInt(activityData.dealId_c);
+      }
+
+      const response = await apperClient.updateRecord('activity_c', {
+        records: [payload]
+      });
+
+      if (!response.success) {
+        console.error(response.message);
+        toast.error(response.message);
+        throw new Error("Failed to update activity");
+      }
+
+      if (response.results) {
+        const failed = response.results.filter(r => !r.success);
+        if (failed.length > 0) {
+          console.error(`Failed to update activity: ${JSON.stringify(failed)}`);
+          failed.forEach(record => {
+            if (record.message) toast.error(record.message);
+          });
+          throw new Error("Failed to update activity");
+        }
+        return response.results[0].data;
+      }
+
+      return response.data;
+    } catch (error) {
+      console.error("Error updating activity:", error?.message || error);
+      throw error;
     }
-    activities[index] = {
-      ...activities[index],
-      ...activityData,
-      Id: parseInt(id)
-    };
-    return { ...activities[index] };
   },
 
   async delete(id) {
-    await delay(300);
-    const index = activities.findIndex(a => a.Id === parseInt(id));
-    if (index === -1) {
-      throw new Error("Activity not found");
+    try {
+      const apperClient = getApperClient();
+      const response = await apperClient.deleteRecord('activity_c', {
+        RecordIds: [parseInt(id)]
+      });
+
+      if (!response.success) {
+        console.error(response.message);
+        toast.error(response.message);
+        return false;
+      }
+
+      if (response.results) {
+        const failed = response.results.filter(r => !r.success);
+        if (failed.length > 0) {
+          console.error(`Failed to delete activity: ${JSON.stringify(failed)}`);
+          failed.forEach(record => {
+            if (record.message) toast.error(record.message);
+          });
+          return false;
+        }
+      }
+
+      return true;
+    } catch (error) {
+      console.error("Error deleting activity:", error?.message || error);
+      return false;
     }
-    activities.splice(index, 1);
-    return true;
   },
 
   async getByContactId(contactId) {
-    await delay(200);
-    return activities.filter(activity => activity.contactId === parseInt(contactId));
+    try {
+      const apperClient = getApperClient();
+      const response = await apperClient.fetchRecords('activity_c', {
+        fields: [
+          {"field": {"Name": "Name"}},
+          {"field": {"Name": "type_c"}},
+          {"field": {"Name": "subject_c"}},
+          {"field": {"Name": "description_c"}},
+          {"field": {"Name": "dueDate_c"}},
+          {"field": {"Name": "completed_c"}},
+          {"field": {"Name": "createdAt_c"}},
+          {"field": {"name": "contactId_c"}, "referenceField": {"field": {"Name": "Name"}}},
+          {"field": {"name": "dealId_c"}, "referenceField": {"field": {"Name": "Name"}}}
+        ],
+        where: [{
+          FieldName: "contactId_c",
+          Operator: "EqualTo",
+          Values: [parseInt(contactId)]
+        }]
+      });
+
+      if (!response.success) {
+        console.error(response.message);
+        return [];
+      }
+
+      return response.data || [];
+    } catch (error) {
+      console.error("Error fetching activities by contact:", error?.message || error);
+      return [];
+    }
   },
 
   async getByDealId(dealId) {
-    await delay(200);
-    return activities.filter(activity => activity.dealId === parseInt(dealId));
+    try {
+      const apperClient = getApperClient();
+      const response = await apperClient.fetchRecords('activity_c', {
+        fields: [
+          {"field": {"Name": "Name"}},
+          {"field": {"Name": "type_c"}},
+          {"field": {"Name": "subject_c"}},
+          {"field": {"Name": "description_c"}},
+          {"field": {"Name": "dueDate_c"}},
+          {"field": {"Name": "completed_c"}},
+          {"field": {"Name": "createdAt_c"}},
+          {"field": {"name": "contactId_c"}, "referenceField": {"field": {"Name": "Name"}}},
+          {"field": {"name": "dealId_c"}, "referenceField": {"field": {"Name": "Name"}}}
+        ],
+        where: [{
+          FieldName: "dealId_c",
+          Operator: "EqualTo",
+          Values: [parseInt(dealId)]
+        }]
+      });
+
+      if (!response.success) {
+        console.error(response.message);
+        return [];
+      }
+
+      return response.data || [];
+    } catch (error) {
+      console.error("Error fetching activities by deal:", error?.message || error);
+      return [];
+    }
   },
 
   async markCompleted(id) {
-    await delay(250);
-    const index = activities.findIndex(a => a.Id === parseInt(id));
-    if (index === -1) {
-      throw new Error("Activity not found");
+    try {
+      const apperClient = getApperClient();
+      const response = await apperClient.updateRecord('activity_c', {
+        records: [{
+          Id: parseInt(id),
+          completed_c: true
+        }]
+      });
+
+      if (!response.success) {
+        console.error(response.message);
+        toast.error(response.message);
+        throw new Error("Failed to mark activity as completed");
+      }
+
+      if (response.results) {
+        const failed = response.results.filter(r => !r.success);
+        if (failed.length > 0) {
+          console.error(`Failed to mark activity as completed: ${JSON.stringify(failed)}`);
+          throw new Error("Failed to mark activity as completed");
+        }
+        return response.results[0].data;
+      }
+
+      return response.data;
+    } catch (error) {
+      console.error("Error marking activity as completed:", error?.message || error);
+      throw error;
     }
-    activities[index] = {
-      ...activities[index],
-      completed: true
-    };
-    return { ...activities[index] };
   },
 
   async getUpcoming(limit = 10) {
-    await delay(200);
-    const now = new Date();
-    return activities
-      .filter(activity => !activity.completed && new Date(activity.dueDate) >= now)
-      .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
-      .slice(0, limit);
+    try {
+      const activities = await this.getAll();
+      const now = new Date();
+      
+      return activities
+        .filter(activity => !activity.completed_c && new Date(activity.dueDate_c) >= now)
+        .sort((a, b) => new Date(a.dueDate_c) - new Date(b.dueDate_c))
+        .slice(0, limit);
+    } catch (error) {
+      console.error("Error fetching upcoming activities:", error?.message || error);
+      return [];
+    }
   },
 
   async getOverdue() {
-    await delay(200);
-    const now = new Date();
-    return activities.filter(activity => 
-      !activity.completed && new Date(activity.dueDate) < now
-    );
+    try {
+      const activities = await this.getAll();
+      const now = new Date();
+      
+      return activities.filter(activity =>
+        !activity.completed_c && new Date(activity.dueDate_c) < now
+      );
+    } catch (error) {
+      console.error("Error fetching overdue activities:", error?.message || error);
+      return [];
+    }
   },
 
   getActivityTypes() {

@@ -20,14 +20,14 @@ const ContactModal = ({ isOpen, onClose, contact, companies, onContactSaved }) =
 
   useEffect(() => {
     if (contact) {
-      setFormData({
-        firstName: contact.firstName || "",
-        lastName: contact.lastName || "",
-        email: contact.email || "",
-        phone: contact.phone || "",
-        companyId: contact.companyId?.toString() || "",
-        title: contact.title || "",
-        notes: contact.notes || ""
+setFormData({
+        firstName_c: contact.firstName_c || "",
+        lastName_c: contact.lastName_c || "",
+        email_c: contact.email_c || "",
+        phone_c: contact.phone_c || "",
+        companyId_c: contact.companyId_c?.Id?.toString() || "",
+        title_c: contact.title_c || "",
+        notes_c: contact.notes_c || ""
       });
     } else {
       setFormData({
@@ -84,7 +84,7 @@ const ContactModal = ({ isOpen, onClose, contact, companies, onContactSaved }) =
 
       let savedContact;
       if (contact) {
-        savedContact = await contactsService.update(contact.Id, contactData);
+savedContact = await contactsService.update(contact.Id, contactData);
       } else {
         savedContact = await contactsService.create(contactData);
       }
@@ -174,7 +174,7 @@ const ContactModal = ({ isOpen, onClose, contact, companies, onContactSaved }) =
               error={errors.companyId}
             >
               <option value="">Select a company</option>
-              {companies.map(company => (
+{companies.map(company => (
                 <option key={company.Id} value={company.Id}>
                   {company.name}
                 </option>
